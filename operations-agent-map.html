@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Operations Agent Map</title>
+<style>
+:root{
+  --bg1:#f7f4ee; --bg2:#e9e4da; --grid:rgba(0,0,0,0.045);
+  --card:#ffffff; --border:#c3cbd5; --text:#17212a; --sub:#5a6672;
+  --chip:#b9c2cc; --chiptext:#46525e; --edge:#6b7f99; --flow:#0f9c86;
+  --wmline:rgba(0,0,0,0.12); --glow:rgba(15,156,134,0.30); --active:#0f9c86;
+  --tile:#f0ede6; --btn:#f3f1ec; --panel:#ffffff; --shadow:0 6px 18px rgba(0,0,0,0.08);
+}
+:root[data-theme="dark"]{
+  --bg1:#0f1513; --bg2:#1c2621; --grid:rgba(255,255,255,0.035);
+  --card:#18201d; --border:#3b4a5c; --text:#eef1f3; --sub:#a3adb6;
+  --chip:#56626e; --chiptext:#c9d0d6; --edge:#8fa3bd; --flow:#7fe3d0;
+  --wmline:rgba(255,255,255,0.10); --glow:rgba(70,220,190,0.45); --active:#4fd8bf;
+  --tile:#222c28; --btn:#141b19; --panel:#18201d; --shadow:0 6px 18px rgba(0,0,0,0.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:radial-gradient(ellipse at 30% 20%,var(--bg2),var(--bg1) 70%) fixed;color:var(--text);font-family:"DejaVu Sans Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-x:hidden}
+.grid{position:fixed;inset:0;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+#toolbar{position:fixed;top:14px;right:16px;z-index:20;display:flex;gap:8px}
+#toolbar button{font:inherit;font-size:13px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;cursor:pointer;box-shadow:var(--shadow)}
+#toolbar button:hover{border-color:var(--active)}
+#wrap{position:relative;margin:0 auto}
+#stage{position:absolute;left:0;top:0;transform-origin:0 0}
+#wm{position:absolute;text-align:right;pointer-events:none}
+#wm .big{font-family:Inter,"Segoe UI",Arial,sans-serif;font-weight:900;color:transparent;-webkit-text-stroke:2px var(--wmline);line-height:1}
+#wm .small{color:var(--wmline);margin-top:6px}
+#header{position:absolute}
+#header .k{font-size:18px;letter-spacing:6px;color:var(--active)}
+#header .h{font-family:Inter,"Segoe UI",Arial,sans-serif;font-weight:800;font-size:44px;margin-top:6px}
+#header .s{font-size:15px;color:var(--sub);margin-top:8px}
+svg#edges{position:absolute;left:0;top:0;overflow:visible}
+.edge{fill:none;stroke:var(--edge);stroke-width:2.5;transition:stroke .2s}
+.flow{fill:none;stroke:var(--flow);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:4 26;animation:flow 1.2s linear infinite;opacity:.85}
+.edge.dim,.flow.dim{opacity:.18}
+.edge.hot{stroke:var(--active)}
+@keyframes flow{to{stroke-dashoffset:-30}}
+@media (prefers-reduced-motion:reduce){.flow{animation:none}}
+.card{position:absolute;background:var(--card);border:2px solid var(--border);border-radius:6px;padding:22px 24px 20px;cursor:pointer;box-shadow:var(--shadow);transition:box-shadow .2s,border-color .2s,opacity .2s,transform .2s}
+.card.planned{border-style:dashed}
+.card:hover,.card.sel{border-color:var(--active);box-shadow:0 0 30px 4px var(--glow)}
+.card.dim{opacity:.35}
+.card:focus-visible{outline:3px solid var(--active);outline-offset:4px}
+.corner{position:absolute;left:-2px;top:-2px;width:0;height:0;border-top:26px solid var(--c);border-right:26px solid transparent}
+.badge{position:absolute;right:16px;top:-15px;font-size:15px;font-weight:bold;padding:3px 10px;border-radius:3px;color:#fff;letter-spacing:1px}
+.row{display:flex;gap:18px;align-items:flex-start}
+.icon{width:58px;height:58px;flex:none;border:1px solid var(--border);border-radius:6px;background:var(--tile);display:flex;align-items:center;justify-content:center}
+.icon svg{width:34px;height:34px}
+.name{font-size:25px;font-weight:bold;letter-spacing:1.5px;line-height:1.15}
+.desc{font-size:18px;color:var(--sub);margin-top:6px}
+.chips{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.chip{font-size:15px;border:1px solid var(--chip);color:var(--chiptext);padding:4px 10px;border-radius:3px}
+.btn{display:block;width:100%;margin-top:14px;border:1px solid var(--chip);background:var(--btn);color:var(--text);border-radius:4px;text-align:center;padding:10px;font:inherit;font-size:17px;font-weight:bold;cursor:pointer}
+.btn:hover{border-color:var(--active)}
+#panel{position:fixed;right:16px;bottom:16px;z-index:30;width:min(380px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.18);padding:20px;transform:translateY(20px);opacity:0;pointer-events:none;transition:.2s}
+#panel.open{transform:none;opacity:1;pointer-events:auto}
+#panel h2{font-size:18px;letter-spacing:1px}
+#panel .pd{color:var(--sub);font-size:14px;margin:6px 0 14px}
+#panel dl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px}
+#panel dt{color:var(--sub)}
+#panel .close{position:absolute;right:12px;top:10px;background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer}
+#panel .note{font-size:13px;color:var(--sub);margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div id="toolbar">
+  <button id="themeBtn" type="button">Dark theme</button>
+</div>
+<div id="wrap"><div id="stage">
+  <div id="wm"><div class="big">VEC-BANDZ</div><div class="small">AI CONSULTANT / SOFTWARE</div></div>
+  <svg id="edges"></svg>
+  <div id="cards"></div>
+  <div id="header"><div class="k">AGENT ARCHITECTURE</div><div class="h">Operations Agent: Overview</div><div class="s">Click an agent for details</div></div>
+</div></div>
+<aside id="panel" aria-live="polite"><button class="close" type="button" aria-label="Close">×</button><div id="pbody"></div></aside>
+
+<script>
+const ORANGE='#d27a17',TEAL='#2fbfa8',GRAY='#7c8792',BLUE='#3b7fe0';
+const BADGE={API:'#8d1a12',MAX:'#0e5a45',LOCAL:'#14306b'};
+const RUNTIME={API:'Anthropic API (pay per use)',MAX:'Claude Max plan',LOCAL:'Runs locally'};
+const ICONS={
+ compass:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#dfe8f0" stroke="#3b7fc4" stroke-width="1.6"/><path d="M15.5 8.5l-2 5-5 2 2-5z" fill="#d93a2b"/><circle cx="12" cy="12" r="1.2" fill="#333"/></svg>',
+ camera:'<svg viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="13" rx="2.5" fill="#596470"/><rect x="8" y="4" width="8" height="4" rx="1" fill="#596470"/><circle cx="12" cy="13" r="4.2" fill="#1f6fb5" stroke="#cfd8e0" stroke-width="1.4"/><circle cx="18.3" cy="9" r="1" fill="#f2c94c"/></svg>',
+ book:'<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1.5" fill="#2f86d6"/><rect x="5" y="3" width="3" height="18" fill="#1c5fa3"/><polygon points="11,9 11,15 16,12" fill="#fff"/></svg>',
+ agent:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="#e7b98f"/><path d="M5 21c0-4 3.2-6.5 7-6.5s7 2.5 7 6.5z" fill="#4b5a6b"/><path d="M7.5 7.2c.6-3 2.3-4.4 4.5-4.4s3.9 1.4 4.5 4.4z" fill="#3a3a3a"/><circle cx="17.5" cy="16.5" r="3.3" fill="none" stroke="#9aa7b4" stroke-width="1.6"/><path d="M19.8 18.8l2 2" stroke="#9aa7b4" stroke-width="1.8"/></svg>',
+ money:'<svg viewBox="0 0 24 24"><path d="M9 5h6l-1.5 2.5c3.5 1.5 6 4.5 6 8 0 3.5-3.2 5.5-7.5 5.5S4.5 19 4.5 15.5c0-3.5 2.5-6.5 6-8z" fill="#d9a23b"/><text x="12" y="18" font-size="9" font-weight="bold" text-anchor="middle" fill="#5b3a06" font-family="Arial">$</text></svg>',
+ clip:'<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="1.5" fill="#b07a45"/><rect x="7" y="7" width="10" height="13" fill="#fff"/><rect x="9" y="2.5" width="6" height="3.5" rx="1" fill="#8a96a3"/><path d="M9 10h6M9 13h6M9 16h4" stroke="#8a96a3" stroke-width="1.2"/></svg>',
+ moon:'<svg viewBox="0 0 24 24"><path d="M15 3a9 9 0 1 0 6 15.5A8 8 0 0 1 15 3z" fill="#f2c94c"/></svg>'
+};
+
+/* ---- Agents: edit this list to add, remove or change agents ---- */
+const AGENTS={
+ ops:{name:'OPERATIONS DIRECTOR',desc:'Management agent',icon:'compass',corner:ORANGE,badge:'API',chips:['Agent SDK','Haiku','Planned'],
+      role:'Top-level manager. Decides what needs doing and hands work to the System Agent.',model:'Claude Haiku',stack:'Claude Agent SDK',status:'Planned'},
+ sys:{name:'SYSTEM AGENT',desc:'System Management agent',icon:'agent',corner:BLUE,badge:'MAX',chips:['Claude Code'],
+      role:'Routes tasks from the Operations Director to the specialist agents and jobs.',model:'Claude Code',stack:'Claude Code',status:'Active'},
+ soc:{name:'SOCIAL MEDIA AGENT',desc:'Social media scheduling',icon:'camera',corner:TEAL,badge:'MAX',chips:['Claude Code'],
+      role:'Plans and schedules VecBandz social posts across channels.',model:'Claude Code',stack:'Claude Code',status:'Active'},
+ fb:{name:'FACEBOOK SUB-AGENT',desc:'Reels rotation',icon:'book',corner:TEAL,badge:'MAX',chips:['Claude Code'],
+      role:'Sub-agent of Social Media. Keeps the Facebook Reels rotation running.',model:'Claude Code',stack:'Claude Code',status:'Active'},
+ fin:{name:'FINANCE AGENT',desc:'Bookkeeping',icon:'money',corner:GRAY,badge:'LOCAL',chips:['Plaid','SQLite'],btn:true,
+      role:'Local bookkeeping: pulls transactions through Plaid and stores them in SQLite.',model:'Local',stack:'Plaid, SQLite',status:'Active'},
+ day:{name:'DAILY SUMMARY',desc:'Evening report',icon:'clip',corner:ORANGE,badge:'API',chips:['Haiku','Planned'],
+      role:'Writes the evening report on what every agent did that day.',model:'Claude Haiku',stack:'Anthropic API',status:'Planned'},
+ ngt:{name:'NIGHTLY PREP',desc:"Drafts tomorrow's posts",icon:'moon',corner:ORANGE,badge:'API',chips:['Sonnet','Planned'],
+      role:"Runs overnight to draft tomorrow's social posts for review.",model:'Claude Sonnet',stack:'Anthropic API',status:'Planned'},
+};
+const LINKS=[['ops','sys'],['sys','soc'],['soc','fb'],['sys','fin'],['sys','day'],['sys','ngt']];
+/* Set this to your Finance dashboard page, e.g. 'finance-dashboard.html' */
+const FINANCE_DASHBOARD_URL='';
+
+/* ---- Layouts (same as the demo video) ---- */
+const LAYOUTS={
+ wide:{W:1920,H:1080,header:[100,46],wm:{right:70,bottom:44,big:96,small:16,ls:17},
+  pos:{ops:[100,250,450,200],sys:[100,640,450,190],soc:[740,140,470,190],fb:[1360,140,460,190],fin:[740,380,470,240],day:[740,665,470,160],ngt:[740,860,470,160]},
+  twoLine:{ops:'OPERATIONS<br>DIRECTOR',soc:'SOCIAL MEDIA<br>AGENT',fb:'FACEBOOK<br>SUB-AGENT'},
+  path(a,b,P){const A=P[a],B=P[b],mid=r=>r[1]+r[3]/2;
+   if(a==='ops')return `M ${A[0]+A[2]/2} ${A[1]+A[3]} L ${B[0]+B[2]/2} ${B[1]}`;
+   if(a==='soc')return `M ${A[0]+A[2]} ${mid(A)} C ${A[0]+A[2]+80} ${mid(A)}, ${B[0]-80} ${mid(B)}, ${B[0]} ${mid(B)}`;
+   const sx=A[0]+A[2],sy=mid(A),bx=650;return `M ${sx} ${sy} L ${bx} ${sy} L ${bx} ${mid(B)} L ${B[0]} ${mid(B)}`;}},
+ tall:{W:1080,H:1920,header:[60,110],wm:{right:60,top:52,big:40,small:10,ls:7},
+  pos:{ops:[60,270,960,170],sys:[60,540,960,170],soc:[170,790,850,170],fb:[330,1000,690,170],fin:[170,1220,850,225],day:[170,1490,850,160],ngt:[170,1690,850,160]},
+  twoLine:{},
+  path(a,b,P){const A=P[a],B=P[b],mid=r=>r[1]+r[3]/2;
+   if(a==='ops')return `M ${A[0]+A[2]/2} ${A[1]+A[3]} L ${B[0]+B[2]/2} ${B[1]}`;
+   if(a==='soc')return `M 250 ${A[1]+A[3]} L 250 ${mid(B)} L ${B[0]} ${mid(B)}`;
+   const bx=110;return `M ${bx} ${A[1]+A[3]} L ${bx} ${mid(B)} L ${B[0]} ${mid(B)}`;}}
+};
+
+let current=null, selected=null;
+function build(){
+ const L=innerWidth<900?LAYOUTS.tall:LAYOUTS.wide;
+ if(L!==current){
+  current=L;
+  const stage=document.getElementById('stage');
+  stage.style.width=L.W+'px';stage.style.height=L.H+'px';
+  const h=document.getElementById('header');h.style.left=L.header[0]+'px';h.style.top=L.header[1]+'px';
+  const wm=document.getElementById('wm');wm.style.cssText=`right:${L.wm.right}px;${L.wm.top!=null?'top:'+L.wm.top:'bottom:'+L.wm.bottom}px`;
+  wm.querySelector('.big').style.fontSize=L.wm.big+'px';
+  Object.assign(wm.querySelector('.small').style,{fontSize:L.wm.small+'px',letterSpacing:L.wm.ls+'px'});
+  document.getElementById('cards').innerHTML=Object.entries(AGENTS).map(([k,a])=>{
+   const [x,y,w,hh]=L.pos[k];
+   return `<div class="card${a.chips.includes('Planned')?' planned':''}" id="c_${k}" data-k="${k}" tabindex="0" role="button" aria-label="${a.name.replace(/<br>/g,' ')} details"
+    style="left:${x}px;top:${y}px;width:${w}px;height:${hh}px;--c:${a.corner}">
+    <div class="corner"></div><div class="badge" style="background:${BADGE[a.badge]}">${a.badge}</div>
+    <div class="row"><div class="icon">${ICONS[a.icon]}</div><div><div class="name">${L.twoLine[k]||a.name}</div><div class="desc">${a.desc}</div></div></div>
+    <div class="chips">${a.chips.map(c=>`<span class="chip">${c}</span>`).join('')}</div>
+    ${a.btn?'<button class="btn" type="button" data-dash="1">▶&nbsp; Open dashboard</button>':''}</div>`;}).join('');
+  const svg=document.getElementById('edges');svg.setAttribute('width',L.W);svg.setAttribute('height',L.H);
+  svg.innerHTML=`<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--edge)"/></marker></defs>`+
+   LINKS.map(([a,b])=>{const d=L.path(a,b,L.pos);return `<path class="edge" data-a="${a}" data-b="${b}" d="${d}" marker-end="url(#ar)"/><path class="flow" data-a="${a}" data-b="${b}" d="${d}"/>`}).join('');
+  if(selected)select(selected);
+ }
+ const scale=Math.min(innerWidth/L.W,1.2);
+ document.getElementById('stage').style.transform=`scale(${scale})`;
+ const wrap=document.getElementById('wrap');wrap.style.width=L.W*scale+'px';wrap.style.height=L.H*scale+'px';
+}
+function select(k){
+ selected=k;
+ const linked=new Set([k]);LINKS.forEach(([a,b])=>{if(a===k)linked.add(b);if(b===k)linked.add(a);});
+ document.querySelectorAll('.card').forEach(c=>{c.classList.toggle('sel',c.dataset.k===k);c.classList.toggle('dim',!!k&&!linked.has(c.dataset.k));});
+ document.querySelectorAll('#edges path[data-a]').forEach(p=>{const on=!k||p.dataset.a===k||p.dataset.b===k;p.classList.toggle('dim',!on);p.classList.toggle('hot',!!k&&on&&p.classList.contains('edge'));});
+ const panel=document.getElementById('panel');
+ if(!k){panel.classList.remove('open');return;}
+ const a=AGENTS[k];
+ const up=LINKS.filter(l=>l[1]===k).map(l=>AGENTS[l[0]].name),down=LINKS.filter(l=>l[0]===k).map(l=>AGENTS[l[1]].name);
+ document.getElementById('pbody').innerHTML=`<h2>${a.name}</h2><div class="pd">${a.role}</div><dl>
+  <dt>Runs on</dt><dd>${RUNTIME[a.badge]}</dd><dt>Model</dt><dd>${a.model}</dd><dt>Stack</dt><dd>${a.stack}</dd><dt>Status</dt><dd>${a.status}</dd>
+  ${up.length?`<dt>Reports to</dt><dd>${up.join(', ')}</dd>`:''}${down.length?`<dt>Directs</dt><dd>${down.join(', ')}</dd>`:''}</dl>`;
+ panel.classList.add('open');
+}
+document.addEventListener('click',e=>{
+ if(e.target.closest('[data-dash]')){e.stopPropagation();
+  if(FINANCE_DASHBOARD_URL)location.href=FINANCE_DASHBOARD_URL;
+  else{select('fin');document.getElementById('pbody').insertAdjacentHTML('beforeend','<div class="note">No dashboard linked yet. Set FINANCE_DASHBOARD_URL near the top of this file to point at your Finance dashboard.</div>');}
+  return;}
+ if(e.target.closest('#panel .close')){select(null);return;}
+ if(e.target.closest('#panel'))return;
+ const c=e.target.closest('.card');select(c&&c.dataset.k!==selected?c.dataset.k:null);
+});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape')select(null);
+ if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('card')){e.preventDefault();select(e.target.dataset.k);}
+});
+const root=document.documentElement,tb=document.getElementById('themeBtn');
+function setTheme(t){root.dataset.theme=t;tb.textContent=t==='dark'?'Light theme':'Dark theme';try{localStorage.setItem('opsmap-theme',t)}catch(e){}}
+let saved='light';try{saved=localStorage.getItem('opsmap-theme')||'light'}catch(e){}
+setTheme(saved);
+tb.onclick=()=>setTheme(root.dataset.theme==='dark'?'light':'dark');
+addEventListener('resize',build);build();
+</script>
+</body>
+</html>
